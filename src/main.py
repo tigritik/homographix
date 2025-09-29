@@ -66,6 +66,21 @@ def project(homography, point):
     scale = destination[-1]
     return destination / scale
 
+def nearest_neighbor(src, point):
+    x, y, _ = np.rint(point).astype(int)
+    return src[y, x]
+
+def interpolate_bilinear(src, point):
+    i, j, _ = np.floor(point).astype(int)
+    a, b, _ = point - np.floor(point)
+
+    return (
+        (1-a) * (1-b) * src[j, i] +
+        a * (1-b) * src[j, i+1] +
+        a * b * src[j+1, i+1] +
+        (1-a) * b * src[j+1, i]
+    )
+
 def generate_image(src, homography, output_size):
     w, h = output_size
     out = np.zeros((h, w, 3))
@@ -75,11 +90,9 @@ def generate_image(src, homography, output_size):
         for y in range(h):
             point = np.array([x, y, 1])
             src_point = project(H_inv, point)
-            src_x, src_y, _ = np.rint(src_point).astype(int)
-            out[y, x] = src[src_y, src_x]
+            out[y, x] = interpolate_bilinear(src, src_point)
 
-    cv2.imwrite("../out.png", out)
-
+    cv2.imwrite("../bilinear.png", out)
 
 
 H = build_homography(correspondence, input_size, output_size)
