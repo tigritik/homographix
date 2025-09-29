@@ -66,7 +66,21 @@ def project(homography, point):
     scale = destination[-1]
     return destination / scale
 
+def generate_image(src, homography, output_size):
+    w, h = output_size
+    out = np.zeros((h, w, 3))
+    H_inv = np.linalg.inv(homography)
+
+    for x in range(w):
+        for y in range(h):
+            point = np.array([x, y, 1])
+            src_point = project(H_inv, point)
+            src_x, src_y, _ = np.rint(src_point).astype(int)
+            out[y, x] = src[src_y, src_x]
+
+    cv2.imwrite("../out.png", out)
+
+
 
 H = build_homography(correspondence, input_size, output_size)
-for src, dst in correspondence:
-    print(project(H, src), dst)
+generate_image(img, H, output_size)
