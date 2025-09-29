@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
 
-#img = cv2.imread("../basketball-court.ppm") #BGR (y, x, 3)
+img = cv2.imread("../basketball-court.ppm") #BGR (y, x, 3)
+input_size = (img.shape[1], img.shape[0])
 
 output_size = (900, 600)
 
@@ -11,6 +12,18 @@ correspondence = [ # (x_i -> (x_i)')
     ([279, 279, 1], [0, output_size[1], 1]),
     ([402, 74, 1], [output_size[0], output_size[1], 1])
 ]
+
+def build_normalization(width, height):
+    T = np.array([
+        [width+height, 0, width/2],
+        [0, width+height, height/2],
+        [0, 0, 1]
+    ])
+
+    return np.linalg.inv(T)
+
+def normalize(correspondences, T1, T2):
+    return list(map(lambda pair: (T1@pair[0], T2@pair[1]), correspondences))
 
 # ASSUMING: h^i is the ith row of H
 
@@ -31,24 +44,29 @@ def build_system(correspondences):
 
     return system
 
-def build_homography(correspondences):
-    A = build_system(correspondences)
+def build_homography(correspondences, input_size, output_size):
+    # generate normalization matrices
+    T_norm_in = build_normalization(*input_size)
+    T_norm_out = build_normalization(*output_size)
+
+    #normalize coordinates
+    normalized_c = normalize(correspondences, T_norm_in, T_norm_out)
+
+    #generate system to solve for H
+    A = build_system(normalized_c)
     _, _, vT = np.linalg.svd(A)
     h = vT[-1, :] #last col of vT is last row of v
-    return h.reshape((3, 3))
+    H_norm = h.reshape((3, 3))
+
+    #denormalize solution
+    return np.linalg.inv(T_norm_out) @ H_norm @ T_norm_in
 
 def project(homography, point):
     destination = homography @ point
     scale = destination[-1]
     return destination / scale
 
-H = build_homography(correspondence)
+
+H = build_homography(correspondence, input_size, output_size)
 for src, dst in correspondence:
     print(project(H, src), dst)
-
-# import numpy as np
-#
-# arr = np.zeros((300,400,3))
-# arr[100:200, 100] = [255, 0, 0]
-# print(arr[100:200, 100])
-# cv2.imwrite("../out.png", arr)
