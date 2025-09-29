@@ -4,7 +4,7 @@ import numpy as np
 img = cv2.imread("../basketball-court.ppm") #BGR (y, x, 3)
 input_size = (img.shape[1], img.shape[0])
 
-output_size = (900, 600)
+output_size = (940, 500)
 
 correspondence = [ # (x_i -> (x_i)')
     ([23, 193, 1], [0, 0, 1]),
@@ -92,7 +92,10 @@ def generate_image(src, homography, output_size):
             src_point = project(H_inv, point)
             out[y, x] = interpolate_bilinear(src, src_point)
 
-    cv2.imwrite("../bilinear.png", out)
+    #make sure values are in the range 0-255
+    out = np.clip(out,0, 255).astype(np.uint8)
+
+    cv2.imwrite("../out.png", out)
 
 
 H = build_homography(correspondence, input_size, output_size)
